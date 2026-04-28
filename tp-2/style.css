@@ -6,12 +6,12 @@ body{
 h1{
     text-align: center;
     text-transform: uppercase;
-    color: black; /* Color inicial */
-    transition: color 0.3s ease; /* tiempo de transicion*/
-    cursor: pointer; /* Cambia el puntero para indicar que es interactivo */
+    color: #eee ; 
+    transition: color 0.3s ease; 
+    cursor: pointer; 
 }
 h1:hover {
-  color: #3498db; /* Color al pasar el puntero (ej. azul) */
+  color: #3498db;
 }
 p{
     font-family: sans-serif;
