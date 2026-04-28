@@ -15,6 +15,7 @@ h1:hover {
 }
 p{
     font-family: sans-serif;
+   
 }
 
 h2{
@@ -46,15 +47,15 @@ strong{
 #og-trilogy:nth-child(even) {
     list-style-type: circle;
 }
-a {/* Color para los links que aún no se han visitado */
+a {
   color: blue;
   text-decoration: none;
 }
-a:visited {  /* Color para los links ya visitados */
+a:visited {  
   color: gray;
 }
 
-/*Color cuando pasás el mouse (hover) */
+
 a:hover {
   color: red;
 }
@@ -65,6 +66,9 @@ a:hover {
 
 .movies-list:nth-of-type(3) li:last-child {
     margin-top: 15px;
+}
+p:first-of-type::first-line {
+    color: #efe;
 }
 
 a:not([href]){
