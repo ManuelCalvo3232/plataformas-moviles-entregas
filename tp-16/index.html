@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Clima - API Open-Meteo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4Q6Gf2aSP4eDXB8Miphtr37CMZZQ5oXLH2yaXMJ2w8e2ZtHTl7GptT4jmndRuHDT" crossorigin="anonymous">
+    <style>
+        .tarjeta-dia {
+            flex: 1 1 130px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container my-1 my-sm-2 my-md-4 my-lg-5">
+        <h1>Clima</h1>
+        <div class="card">
+            <div class="card-body">
+                <form id="form-ciudad" class="input-group mb-3">
+                    <input type="text" id="input-ciudad" class="form-control" placeholder="Ciudad (ej: Buenos Aires)" aria-label="Ciudad" required>
+                    <button class="btn btn-primary" type="submit">Buscar</button>
+                </form>
+
+                <div id="estado" class="mb-3"></div>
+                <div id="opciones" class="list-group mb-3"></div>
+                <div id="clima"></div>
+            </div>
+        </div>
+        <p class="text-muted small mt-2 mb-0">Datos: <a href="https://open-meteo.com/">Open-Meteo</a></p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js" integrity="sha384-j1CDi7MgGQ12Z7Qab0qlWQ/Qqz24Gc6BM0thvEMVjHnfYGF0rmFCozFSxQBxwHKO" crossorigin="anonymous"></script>
+    <script type="text/javascript">
+        const formCiudad = document.getElementById('form-ciudad');
+        const inputCiudad = document.getElementById('input-ciudad');
+        const estado = document.getElementById('estado');
+        const opciones = document.getElementById('opciones');
+        const clima = document.getElementById('clima');
+
+        const CODIGOS_WMO = {
+            0: 'Despejado',
+            1: 'Mayormente despejado',
+            2: 'Parcialmente nublado',
+            3: 'Nublado',
+            45: 'Niebla',
+            48: 'Niebla con escarcha',
+            51: 'Llovizna leve',
+            53: 'Llovizna moderada',
+            55: 'Llovizna intensa',
+            61: 'Lluvia leve',
+            63: 'Lluvia moderada',
+            65: 'Lluvia intensa',
+            71: 'Nevada leve',
+            73: 'Nevada moderada',
+            75: 'Nevada intensa',
+            80: 'Chubascos leves',
+            81: 'Chubascos moderados',
+            82: 'Chubascos fuertes',
+            95: 'Tormenta',
+            96: 'Tormenta con granizo',
+            99: 'Tormenta fuerte con granizo'
+        };
+
+        function describirClima(codigo) {
+            return CODIGOS_WMO[codigo] ?? 'Condición desconocida';
+        }
+
+        function mostrarEstado(texto, esError = false) {
+            estado.className = esError ? 'alert alert-danger' : 'text-muted';
+            estado.textContent = texto;
+        }
+
+        function limpiarResultados() {
+            opciones.innerHTML = '';
+            clima.innerHTML = '';
+        }
+
+        async function pedirJSON(url) {
+            const respuesta = await fetch(url);
+            if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
+            return respuesta.json();
+        }
+
+        async function buscarCiudades(nombre) {
+            const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(nombre)}&count=5&language=es&format=json`;
+            const datos = await pedirJSON(url);
+            return datos.results ?? [];
+        }
+
+        async function obtenerPronostico(ciudad) {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${ciudad.latitude}&longitude=${ciudad.longitude}&current=temperature_2m,wind_speed_10m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`;
+            return pedirJSON(url);
+        }
+
+        function crearElemento(etiqueta, clases, texto) {
+            const elemento = document.createElement(etiqueta);
+            if (clases) elemento.className = clases;
+            if (texto !== undefined) elemento.textContent = texto;
+            return elemento;
+        }
+
+        function renderizarClima(ciudad, pronostico) {
+            const actual = pronostico.current;
+            const tarjeta = crearElemento('div', 'card mb-3');
+            const cuerpo = crearElemento('div', 'card-body');
+            cuerpo.append(
+                crearElemento('h2', 'h4', `${ciudad.name}, ${ciudad.country}`),
+                crearElemento('p', 'display-5 mb-1', `${Math.round(actual.temperature_2m)} °C`),
+                crearElemento('p', 'mb-1', describirClima(actual.weather_code)),
+                crearElemento('p', 'text-muted mb-0', `Viento: ${actual.wind_speed_10m} km/h`)
+            );
+            tarjeta.appendChild(cuerpo);
+
+            const dias = crearElemento('div', 'd-flex flex-wrap gap-2');
+            const diario = pronostico.daily;
+            diario.time.forEach((fecha, i) => {
+                const dia = crearElemento('div', 'card tarjeta-dia text-center');
+                const cuerpoDia = crearElemento('div', 'card-body p-2');
+                const nombreDia = new Date(`${fecha}T00:00:00`).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' });
+                cuerpoDia.append(
+                    crearElemento('p', 'fw-bold mb-1', nombreDia),
+                    crearElemento('p', 'small mb-1', describirClima(diario.weather_code[i])),
+                    crearElemento('p', 'mb-0', `${Math.round(diario.temperature_2m_max[i])}° / ${Math.round(diario.temperature_2m_min[i])}°`)
+                );
+                dia.appendChild(cuerpoDia);
+                dias.appendChild(dia);
+            });
+
+            clima.append(tarjeta, dias);
+        }
+
+        async function mostrarClimaDe(ciudad) {
+            limpiarResultados();
+            mostrarEstado('Cargando pronóstico...');
+            try {
+                const pronostico = await obtenerPronostico(ciudad);
+                mostrarEstado('');
+                renderizarClima(ciudad, pronostico);
+            } catch (error) {
+                mostrarEstado('No se pudo obtener el pronóstico. Intentá de nuevo.', true);
+            }
+        }
+
+        function mostrarOpciones(ciudades) {
+            mostrarEstado('Elegí una ciudad:');
+            ciudades.forEach(ciudad => {
+                const boton = crearElemento('button', 'list-group-item list-group-item-action', [ciudad.name, ciudad.admin1, ciudad.country].filter(Boolean).join(', '));
+                boton.type = 'button';
+                boton.addEventListener('click', () => mostrarClimaDe(ciudad));
+                opciones.appendChild(boton);
+            });
+        }
+
+        formCiudad.addEventListener('submit', async e => {
+            e.preventDefault();
+            const nombre = inputCiudad.value.trim();
+            if (nombre === '') return;
+
+            limpiarResultados();
+            mostrarEstado('Buscando ciudad...');
+            try {
+                const ciudades = await buscarCiudades(nombre);
+                if (ciudades.length === 0) {
+                    mostrarEstado(`No se encontró la ciudad "${nombre}".`, true);
+                } else if (ciudades.length === 1) {
+                    await mostrarClimaDe(ciudades[0]);
+                } else {
+                    mostrarOpciones(ciudades);
+                }
+            } catch (error) {
+                mostrarEstado('No se pudo conectar con el servicio de clima. Intentá de nuevo.', true);
+            }
+        });
+    </script>
+</body>
+</html>
