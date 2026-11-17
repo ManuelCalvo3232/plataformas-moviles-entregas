@@ -38,28 +38,75 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js" integrity="sha384-j1CDi7MgGQ12Z7Qab0qlWQ/Qqz24Gc6BM0thvEMVjHnfYGF0rmFCozFSxQBxwHKO" crossorigin="anonymous"></script>
     <script type="text/javascript">
         const lista = document.getElementById('lista-productos');
+        const CLAVE_STORAGE = 'lista-compras';
+        let editando = null;
+
+        function cargarProductos() {
+            const guardados = localStorage.getItem(CLAVE_STORAGE);
+            if (guardados !== null) return JSON.parse(guardados);
+            return Array.from(lista.querySelectorAll('li'), li => ({ nombre: li.textContent.trim(), comprado: false }));
+        }
+
+        let productos = cargarProductos();
+
+        function guardar() {
+            localStorage.setItem(CLAVE_STORAGE, JSON.stringify(productos));
+            renderizar();
+        }
+
+        function renderizar() {
+            lista.innerHTML = '';
+            productos.forEach((producto, indice) => lista.appendChild(crearItem(producto, indice)));
+            lista.querySelector('.input-edicion')?.focus();
+        }
 
         /**
-         * Crea el elemento de la lista con el nombre del producto y su botón de eliminar.
+         * Crea el elemento de la lista con su casilla de comprado, nombre y botones de editar y eliminar.
          */
-        function crearItem(nombre) {
+        function crearItem(producto, indice) {
             const li = document.createElement('li');
             li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.dataset.indice = indice;
 
-            const texto = document.createElement('span');
-            texto.textContent = nombre;
+            const izquierda = document.createElement('div');
+            izquierda.className = 'd-flex align-items-center gap-2';
+
+            const check = document.createElement('input');
+            check.type = 'checkbox';
+            check.className = 'form-check-input mt-0 check-comprado';
+            check.checked = producto.comprado;
+
+            if (indice === editando) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-control form-control-sm input-edicion';
+                input.value = producto.nombre;
+                izquierda.append(check, input);
+            } else {
+                const texto = document.createElement('span');
+                texto.textContent = producto.nombre;
+                texto.classList.toggle('text-decoration-line-through', producto.comprado);
+                texto.classList.toggle('text-muted', producto.comprado);
+                izquierda.append(check, texto);
+            }
+
+            const derecha = document.createElement('div');
+            derecha.className = 'd-flex gap-2';
+
+            const btnEditar = document.createElement('button');
+            btnEditar.type = 'button';
+            btnEditar.className = 'btn btn-sm btn-outline-primary btn-editar';
+            btnEditar.textContent = 'Editar';
 
             const btnEliminar = document.createElement('button');
             btnEliminar.type = 'button';
             btnEliminar.className = 'btn btn-sm btn-outline-danger btn-eliminar';
             btnEliminar.textContent = 'Eliminar';
 
-            li.append(texto, btnEliminar);
+            derecha.append(btnEditar, btnEliminar);
+            li.append(izquierda, derecha);
             return li;
         }
-
-        // Los productos que ya están en el HTML inicial también reciben su botón de eliminar
-        lista.querySelectorAll('li').forEach(li => li.replaceWith(crearItem(li.textContent.trim())));
 
         /**
          * agregarProducto()
@@ -68,24 +115,61 @@
         function agregarProducto(nombreProducto) {
             const nombre = nombreProducto.trim();
             if (nombre === '') return;
-            lista.appendChild(crearItem(nombre));
+            productos.push({ nombre, comprado: false });
+            guardar();
         }
 
         function ordenarLista() {
-            const items = Array.from(lista.children);
-            items.sort((a, b) => a.querySelector('span').textContent.localeCompare(b.querySelector('span').textContent, 'es'));
-            items.forEach(li => lista.appendChild(li));
+            editando = null;
+            productos.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+            guardar();
         }
 
         function limpiarLista() {
-            lista.innerHTML = '';
+            editando = null;
+            productos = [];
+            guardar();
         }
 
-        // Delegación: un solo listener para los botones "Eliminar" de todos los productos
+        function guardarEdicion(valor) {
+            if (editando === null) return;
+            const nombre = valor.trim();
+            if (nombre !== '') productos[editando].nombre = nombre;
+            editando = null;
+            guardar();
+        }
+
         lista.addEventListener('click', e => {
+            const indice = Number(e.target.closest('li')?.dataset.indice);
             if (e.target.classList.contains('btn-eliminar')) {
-                e.target.closest('li').remove();
+                editando = null;
+                productos.splice(indice, 1);
+                guardar();
+            } else if (e.target.classList.contains('btn-editar')) {
+                editando = indice;
+                renderizar();
             }
+        });
+
+        lista.addEventListener('change', e => {
+            if (!e.target.classList.contains('check-comprado')) return;
+            const indice = Number(e.target.closest('li').dataset.indice);
+            productos[indice].comprado = e.target.checked;
+            guardar();
+        });
+
+        lista.addEventListener('keydown', e => {
+            if (!e.target.classList.contains('input-edicion')) return;
+            if (e.key === 'Enter') {
+                guardarEdicion(e.target.value);
+            } else if (e.key === 'Escape') {
+                editando = null;
+                renderizar();
+            }
+        });
+
+        lista.addEventListener('focusout', e => {
+            if (e.target.classList.contains('input-edicion')) guardarEdicion(e.target.value);
         });
 
         document.getElementById('btn-ordenar').addEventListener('click', ordenarLista);
@@ -100,6 +184,8 @@
         }
 
         document.querySelector('form').addEventListener('submit', handlerFormulario);
+
+        renderizar();
     </script>
 </body>
 </html>
