@@ -52,6 +52,18 @@
                         <input type="range" class="form-range" id="tamano" min="12" max="40" value="16">
                     </div>
                 </div>
+
+                <div class="row mt-2">
+                    <div class="col-12 col-md-6 my-1">
+                        <label for="tipografia" class="form-label">Tipografía</label>
+                        <select id="tipografia" class="form-select">
+                            <option value="">Predeterminada</option>
+                            <option value="Georgia, serif">Serif</option>
+                            <option value="Arial, sans-serif">Sans-serif</option>
+                            <option value="'Courier New', monospace">Monoespaciada</option>
+                        </select>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -152,6 +164,19 @@
 
         document.getElementById('tamano').addEventListener('input', e => {
             texto.style.fontSize = e.target.value + 'px';
+        });
+
+        document.getElementById('tipografia').addEventListener('change', e => {
+            texto.style.fontFamily = e.target.value;
+        });
+
+        const atajos = { b: 'negrita', i: 'cursiva', u: 'subrayado' };
+        document.addEventListener('keydown', e => {
+            if (!(e.ctrlKey || e.metaKey)) return;
+            const formato = atajos[e.key.toLowerCase()];
+            if (!formato) return;
+            e.preventDefault();
+            alternarEstilo(formato);
         });
     </script>
 </body>
